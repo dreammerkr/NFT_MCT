@@ -63,6 +63,8 @@ contract MCT is ERC721URIStorage{
         SoldCard(id);
     }
     
+    //checking github remote
+
     function _mintCard(address _to, uint _id) private {
         _safeMint(_to, _id);
         

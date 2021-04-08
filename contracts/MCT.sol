@@ -40,7 +40,7 @@ contract MCT is ERC721URIStorage{
     uint currGen;
     
 
-    function _generatePool(uint _numofnewcards /*What to input for URI's? array of strings are not available in Solidity (yet)*/) private{
+    function generatePool(uint _numofnewcards /*What to input for URI's? array of strings are not available in Solidity (yet)*/) external {
         require(msg.sender==admin);
         for(uint i=1; i<=_numofnewcards; i++){
             _setTokenURI(lastId+i, ""); //How to pass strings in a nested loop? Maybe just call it everytime?
@@ -48,6 +48,10 @@ contract MCT is ERC721URIStorage{
         numOfCardsPerGen[++currGen]=_numofnewcards;
         lastId+=_numofnewcards;
         NewGen();
+    }
+    
+    function seeCard(uint _id) external view returns (string memory){
+        return tokenURI(_id);
     }
     
     function gatcha(address _to) external payable{

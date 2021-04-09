@@ -13,7 +13,7 @@ contract MCT is ERC721URIStorage{
     //Events that are needed when calling a user's owned tokens
     event CallYourTokens_Start();               //Initiate token call
     event CallYourTokens(string _url);          //Token is called
-    event CallYOurTokens_Finish();              //Finish token call
+    event CallYourTokens_Finish();              //Finish token call, typo fixed, sry.
 
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
@@ -31,6 +31,18 @@ contract MCT is ERC721URIStorage{
     }
 
 
+    //funciton that calls all cards an address owns. Making new datastructure is too costly and hard to handle by the transferFrom() function.
+    function callOwnedCards(address _address) external {
+        require(msg.sender==_address); //Maybe change to assert()?
+        CallYourTokens_Start();
+        for(uint i=0; i<_tokenIds.current(); i++){
+            if(_address==ownerOf(i)){
+                string memory url = tokenURI(i);
+                CallYourTokens(url);
+            }
+        }
+        CallYourTokens_Finish();
+    }
     
 
     function addCard(string memory _uri) external {

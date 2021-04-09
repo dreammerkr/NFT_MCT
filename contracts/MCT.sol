@@ -9,6 +9,12 @@ contract MCT is ERC721URIStorage{
     event MCTInit();
     event NewGen();
     event SoldCard(uint _id);
+
+    //Events that are needed when calling a user's owned tokens
+    event CallYourTokens_Start();               //Initiate token call
+    event CallYourTokens(string _url);          //Token is called
+    event CallYOurTokens_Finish();              //Finish token call
+
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
     uint gatchaprice;

@@ -27,21 +27,21 @@ contract MCT is ERC721URIStorage{
         admin=msg.sender;
         lastId=0;
         currGen=0; //this will be incremented as soon as startNewGen() is called.
-        MCTInit();
+        emit MCTInit();
     }
 
 
     //funciton that calls all cards an address owns. Making new datastructure is too costly and hard to handle by the transferFrom() function.
     function callOwnedCards(address _address) external {
         require(msg.sender==_address); //Maybe change to assert()?
-        CallYourTokens_Start();
+        emit CallYourTokens_Start();
         for(uint i=0; i<_tokenIds.current(); i++){
             if(_address==ownerOf(i)){
                 string memory url = tokenURI(i);
-                CallYourTokens(url);
+                emit CallYourTokens(url);
             }
         }
-        CallYourTokens_Finish();
+        emit CallYourTokens_Finish();
     }
     
 
@@ -56,7 +56,7 @@ contract MCT is ERC721URIStorage{
     function startNewGen() external{
         numOfCardsPerGen.push(0);
         currGen++;
-        NewGen();
+        emit NewGen();
     }
     
     function seeCard(uint _id) external view returns (string memory){
@@ -69,7 +69,7 @@ contract MCT is ERC721URIStorage{
         
         uint id=getRandId();
         _mintCard(_to, id);
-        SoldCard(id);
+        emit SoldCard(id);
     }
     
     function _mintCard(address _to, uint _id) private {

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>MCT frontend</title>
+    <script language="javascript" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script language="javascript" type="text/javascript" src="web3.min.js"></script>
+   
+  </head>
+  <body>
+    <div id="cards"></div>
+
+    <script>
+        var MCT;
+        var userAccount;
+
+        function startApp() {
+          var MCTAddress;
+          MCT = new web3js.eth.Contract(MCTABI, MCTAddress);
+  
+          var accountInterval = setInterval(function() {
+            // Check if account has changed
+            if (web3.eth.accounts[0] !== userAccount) {
+              userAccount = web3.eth.accounts[0];
+              // Call a function to update the UI with the new account
+              getCardsByOwner(userAccount)
+              .then(displayCards);
+            }
+          }, 100); //check every 100 milliseconds to see if userAccount is still equal web3.eth.accounts[0]
+        }
+
+        function displayCards(cards) {
+        $("#cards").empty();
+        for (card of cards) {
+          // showing the card image
+          getCardDetails(id)
+          .then(function(card) {
+            // Using ES6's "template literals" to inject variables into the HTML.
+            // Append each one to our #cards div
+            $("#cards").append(`<div class="card">
+              <ul>
+                <li> </li>
+              </ul>
+            </div>`);
+          });
+        }
+      }
+
+        function addCard(name) {
+        $("#txStatus").text("Adding new MCT on the blockchain. This may take a while...");
+        // Send the tx to our contract:
+        return MCT.methods.addCard(name)
+        .send({ from: userAccount })
+        .on("receipt", function(receipt) {
+          $("#txStatus").text("Successfully added " + name + "!");
+          // Transaction was accepted into the blockchain, redraw the UI
+          getCardsByOwner(userAccount).then(displayCards);
+        })
+        .on("error", function(error) {
+          // Alert Transaction has failed
+          $("#txStatus").text(error);
+        });
+      }
+
+        //Get the address of the owner of card by id
+      function CardsToOwner(id) {
+        return MCT.methods.ownerOf(id).call()
+      }
+
+      //calls all cards an address owns
+      function getCardsByOwner(owner) {
+        return MCT.methods.callOwnedCards(owner).call() //called function in backend
+      }
+
+      window.addEventListener('load', function() {
+
+        // Checking if Web3 has been injected by the browser (Mist/MetaMask)
+        if (typeof web3 !== 'undefined') {
+          // Use Mist/MetaMask's provider
+          web3js = new Web3(web3.currentProvider);
+        } else {
+          // Handle the case where the user doesn't have Metamask installed
+          // Show them a message prompting them to install Metamask
+          alert("Install Matamask to continue");
+        }
+        startApp()
+
+      })
+    </script>
+  </body>
+</html>
+

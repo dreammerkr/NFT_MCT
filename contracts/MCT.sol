@@ -4,7 +4,6 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 
-//testing Git pull, hope this appears :)
 
 contract MCT is ERC721URIStorage{
     
@@ -17,66 +16,116 @@ contract MCT is ERC721URIStorage{
     event CallYourTokens(string _url);          //Token is called
     event CallYourTokens_Finish();              //Finish token call, typo fixed, sry.
 
+   struct Card{
+        uint id;
+        address owner;
+        string url;
+    }
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
     uint gatchaprice;
-    uint lastId;
-    uint[] numOfCardsPerGen;
-    uint currGen;//starts from 1, not 0
-    
+    uint[] private _numOfCardsPerGen;
+    uint private  _currGen;//starts from 1, not 0
+    mapping (address => uint[]) private _ownedCards;
     address public admin;
-    constructor() ERC721('MCT', 'Card'){
+    
+    
+    constructor() ERC721('MCT', 'Card') {
         admin=msg.sender;
-        lastId=0;
-        currGen=0; //this will be incremented as soon as startNewGen() is called.
+        _currGen=0; //this will be incremented as soon as startNewGen() is called.
         emit MCTInit();
+        gatchaprice=0; //Set to 0 for easy testing.
     }
 
+    
 
-    //funciton that calls all cards an address owns. Making new datastructure is too costly and hard to handle by the transferFrom() function.
+    function addCard(string memory _url) external {
+        require(msg.sender==admin);
+        _numOfCardsPerGen[_currGen-1]++;
+        uint id=_tokenIds.current();
+        _tokenIds.increment();
+        _mintCard(admin, id);
+        _setTokenURI(id, _url);
+    }
+    
+    function startNewGen() external{
+        _numOfCardsPerGen.push(0);
+        _currGen++;
+        emit NewGen();
+    }
+    
     function callOwnedCards(address _address) external {
         require(msg.sender==_address); //Maybe change to assert()?
         emit CallYourTokens_Start();
-        for(uint i=0; i<_tokenIds.current(); i++){
-            if(_address==ownerOf(i)){
-                string memory url = tokenURI(i);
-                emit CallYourTokens(url);
-            }
+        uint[] memory ownedCards = _ownedCards[_address];
+        for(uint i=0; i<ownedCards.length; i++){
+            string memory url=tokenURI(ownedCards[i]);
+            emit CallYourTokens(url);
         }
         emit CallYourTokens_Finish();
     }
     
-
-    function addCard(string memory _uri) external {
-        require(msg.sender==admin);
-        numOfCardsPerGen[currGen-1]++;
-        _tokenIds.increment();
-        uint id=_tokenIds.current();
-        _setTokenURI(id, _uri);
-    }
-    
-    function startNewGen() external{
-        numOfCardsPerGen.push(0);
-        currGen++;
-        emit NewGen();
-    }
-    
-    function seeCard(uint _id) external view returns (string memory){
-        return tokenURI(_id);
+    function searchCard(uint _id) external view returns (Card memory){
+        string memory url = tokenURI(_id);
+        address owner = ownerOf(_id);
+        Card memory card;
+        card.id=_id;
+        card.owner=owner;
+        card.url=url;
+        return card;
     }
     
     function gatcha(address _to) external payable{
         //Currently paying with Ether. This must tbe modified when integrated with Fungible Token.
         require(_to==msg.sender && msg.value==gatchaprice);
-        
-        uint id=getRandId();
-        _mintCard(_to, id);
+        uint id;
+        do{
+            id=getRandId();
+        } while(ownerOf(id)!=admin);
+        TransferCard(admin, _to, id);
         emit SoldCard(id);
+    }
+    
+    
+    //function to transfer card. should not use transfer function of parent contracts.
+    function TransferCard(address _from, address _to, uint _id) public {
+        require(ownerOf(_id)==_from || _to==getApproved(_id), 'Invalid transfer');
+        if(_removeOwnership(ownerOf(_id), _id)){
+            _addOwnership(_to, _id);
+            super.safeTransferFrom(_from, _to, _id);
+        }
     }
     
     function _mintCard(address _to, uint _id) private {
         _safeMint(_to, _id);
         
+    }
+    
+    function _addOwnership(address _owner, uint _id) private{
+        _ownedCards[_owner].push(_id);
+    }
+    
+    function _removeOwnership(address _owner, uint _id) private returns (bool) {
+        uint len = _ownedCards[_owner].length;
+        uint i=0;
+        while(i<len){
+            if(_ownedCards[_owner][i]==_id){
+                uint lastElement=_ownedCards[_owner][len];
+                _ownedCards[_owner][i]=lastElement;
+                _ownedCards[_owner].pop();
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    
+    //Do we need to burn a card?
+    function _burnCard(uint _id) internal {
+        require(msg.sender==ownerOf(_id) || msg.sender==getApproved(_id));
+        address owner = ownerOf(_id);
+        _removeOwnership(owner, _id);
+        super._burn(_id);
     }
     
     //Get Random Number from Backend, currently a dummy function.

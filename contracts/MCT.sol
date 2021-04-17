@@ -1,44 +1,50 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "../node_modules/@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "../node_modules/@openzeppelin/contracts/utils/Counters.sol";
+import "../node_modules/@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "./GetRandomNumber.sol";
 
-
-contract MCT is ERC721URIStorage{
+contract MCT is ERC721URIStorage, GetRandomNumber{
+    
+    
+    /*Many require() and approval statements, visibility declarations are inadequate. These should be thoroughly tested, only the simplest logic has been made.*/
     
     event MCTInit();
     event NewGen();
-    event SoldCard(uint _id);
-
-    //Events that are needed when calling a user's owned tokens
-    event CallYourTokens_Start();               //Initiate token call
-    event CallYourTokens(string _url);          //Token is called
-    event CallYourTokens_Finish();              //Finish token call, typo fixed, sry.
-
-   struct Card{
+    event SoldCard(string _uri);
+    event CallYourTokens_Start();
+    event CallYourTokens(string _uri);
+    event CallYourTokens_Finish();
+    
+    
+    struct Card{
         uint id;
         address owner;
         string url;
     }
     using Counters for Counters.Counter;
+    using Strings for string;
     Counters.Counter private _tokenIds;
     uint gatchaprice;
+    uint private _previousGenCards;
     uint[] private _numOfCardsPerGen;
     uint private  _currGen;//starts from 1, not 0
     mapping (address => uint[]) private _ownedCards;
     address public admin;
+    uint public cycler;
+
     
     
-    constructor() ERC721('MCT', 'Card') {
+    constructor(address _VRFCoordinator, address _LinkToken, bytes32 _keyhash) GetRandomNumber(_VRFCoordinator, _LinkToken, _keyhash) ERC721('NFT-MCT', 'MCT') {
         admin=msg.sender;
         _currGen=0; //this will be incremented as soon as startNewGen() is called.
         emit MCTInit();
+        _previousGenCards=0;
         gatchaprice=0; //Set to 0 for easy testing.
+        cycler=18047; //prime number.
     }
-
-    
 
     function addCard(string memory _url) external {
         require(msg.sender==admin);
@@ -51,6 +57,9 @@ contract MCT is ERC721URIStorage{
     
     function startNewGen() external{
         _numOfCardsPerGen.push(0);
+        if(_currGen!=0){
+            _previousGenCards+=_numOfCardsPerGen[_currGen-1];
+        }
         _currGen++;
         emit NewGen();
     }
@@ -76,15 +85,13 @@ contract MCT is ERC721URIStorage{
         return card;
     }
     
-    function gatcha(address _to) external payable{
+    function gatcha(address _to, uint userProvidedSeed) external payable{
         //Currently paying with Ether. This must tbe modified when integrated with Fungible Token.
-        require(_to==msg.sender && msg.value==gatchaprice);
-        uint id;
-        do{
-            id=getRandId();
-        } while(ownerOf(id)!=admin);
+        require(canGenerateRand(_to), "Your previous Gatcha is not finished!");
+        require(_to==msg.sender && msg.value==gatchaprice, "Get your own pack or pay for it!");
+        uint id = _drawcardId(_to, userProvidedSeed);
         TransferCard(admin, _to, id);
-        emit SoldCard(id);
+        emit SoldCard(tokenURI(id));
     }
     
     
@@ -95,6 +102,18 @@ contract MCT is ERC721URIStorage{
             _addOwnership(_to, _id);
             super.safeTransferFrom(_from, _to, _id);
         }
+    }
+    
+    function _drawcardId(address _to, uint userProvidedSeed) private returns (uint) {
+        callRand(userProvidedSeed, _to);
+        uint rawid = getRandomNumber(_to);
+        uint id = rawid%_numOfCardsPerGen[_currGen-1];
+        id+=_previousGenCards;
+        while(ownerOf(id)!=admin){
+            id+=cycler;
+            id%=_numOfCardsPerGen[_currGen-1];
+        }
+        return id;
     }
     
     function _mintCard(address _to, uint _id) private {

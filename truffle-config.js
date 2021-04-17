@@ -73,6 +73,7 @@ module.exports = {
     // production: true    // Treats this network as if it was a public net. (default: false)
     // }
   },
+  },
 
   // Set default mocha options here, use special reporters etc.
   mocha: {
@@ -103,5 +104,4 @@ module.exports = {
   db: {
     enabled: false
   }
-  }
-}
+};
